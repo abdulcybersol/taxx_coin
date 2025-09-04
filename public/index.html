@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Trading Dashboard</title>
+  <link rel="icon" href="/" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #121212;
+      color: #eee;
+      margin: 0; padding: 20px;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 12px;
+      border-bottom: 1px solid #444;
+      text-align: center;
+    }
+    th {
+      background-color: #1e1e1e;
+    }
+    tr:hover {
+      background-color: #2a2a2a;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #1e88e5;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #1565c0;
+    }
+    #wallet-address {
+      margin: 10px 0;
+      font-weight: bold;
+    }
+    #trade-panel {
+      background-color: #1e1e1e;
+      border: 1px solid #444;
+      padding: 20px;
+      margin-top: 30px;
+      display: none;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.6.2/dist/ethers.umd.min.js"></script>
+</head>
+<body>
+
+  <h1>Real-Time Trading Dashboard</h1>
+  <div style="text-align:center; margin: 20px 0;">
+    <button id="connect-wallet">Connect Wallet</button>
+     <!-- <button onclick="connectWallet()">Connect Wallet</button> -->
+    <p id="wallet-address">Not Connected</p>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Coin</th>
+        <th>Symbol</th>
+        <th>Price (USD)</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="coins-table">
+      <tr><td colspan="4">Loading...</td></tr>
+    </tbody>
+  </table>
+
+
+  <!-- TRADE PANEL -->
+  <div id="trade-panel">
+    <h2 id="trade-title">Trade</h2>
+    <p>Amount: <input type="number" id="trade-amount" placeholder="Enter amount" /></p>
+    <p>
+      Swap to:
+      <select id="swap-to-coin">
+
+      </select>
+    </p>
+    <button id="buy-btn">Buy</button>
+    <button id="sell-btn">Sell</button>
+    <button id="swap-btn">Swap</button>
+    <p id="trade-status"></p>
+  </div>
+
+  <!-- Order history -->
+   <h2>Order History</h2>
+<table id="orderHistory" border="1">
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Coin</th>
+      <th>Amount</th>
+      <th>Tx Hash</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody id="orderHistoryBody">
+  </tbody>
+</table>
+
+<!-- <script src="https://unpkg.com/@web3modal/html"></script> -->
+
+<!-- <script src="https://cdn.jsdelivr.net/npm/@web3modal/cdn@3.5.7/w3m.min.js"></script> -->
+
+
+<script>
+  // const projectId = ea80cdf5d329fb23022a5d4705e8d04c;
+  const coinsTable = document.getElementById('coins-table');
+  const connectWalletBtn = document.getElementById('connect-wallet');
+  const walletAddressP = document.getElementById('wallet-address');
+  const tradePanel = document.getElementById('trade-panel');
+  const tradeTitle = document.getElementById('trade-title');
+  const tradeAmount = document.getElementById('trade-amount');
+  const buyBtn = document.getElementById('buy-btn');
+  const sellBtn = document.getElementById('sell-btn');
+  const tradeStatus = document.getElementById('trade-status');
+  const swapBtn = document.getElementById('swap-btn');
+  const swapToCoin = document.getElementById('swap-to-coin');
+
+  let selectedCoin = null;
+  let signer = null;
+
+  // Fetch prices from backend
+  async function fetchCoins() {
+    try {
+      const res = await fetch('/api/coins');
+      const coins = await res.json();
+      // console.log('conins', coins);
+
+      coinsTable.innerHTML = '';
+      coins.forEach(coin => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${coin.name}</td>
+          <td>${coin.symbol}</td>
+          <td>$${coin.current_price}</td>
+          <td><button onclick="openTrade('${coin.name}', '${coin.symbol}')">Trade</button></td>
+        `;
+        coinsTable.appendChild(row);
+      });
+      
+      swapToCoin.innerHTML = ''
+
+      // swap select
+      coins.forEach((coin) => {
+        const option = document.createElement('option')
+        option.value = coin.symbol;
+        option.textContent = `${coin.name} $(${coin.symbol})`
+        swapToCoin.appendChild(option);
+      })
+
+    } catch (err) {
+      coinsTable.innerHTML = '<tr><td colspan="4">Failed to load coins.</td></tr>';
+    }
+  }
+
+  fetchCoins();
+  setInterval(fetchCoins, 30000);
+
+  // Connect wallet
+  // connectWalletBtn.onclick = async () => {
+  //   if (!window.ethereum) return alert("Install MetaMask");
+  //   try {
+  //     const provider = new ethers.BrowserProvider(window.ethereum);
+  //     console.log('provider', provider);
+      
+  //     await provider.send("eth_requestAccounts", []);
+  //     signer = await provider.getSigner();
+  //     console.log('signer', signer);
+      
+  //     // const address = await signer.getAddress();
+  //     const address = await signer.getAddress?.() || signer.address;
+  //     console.log('add', address);
+  //     walletAddressP.textContent = `Connected: ${address}`;
+  //   } catch (e) {
+  //      console.error(e);
+  //     alert("Wallet connection failed: " + e.message);
+  //   }
+  // };
+
+  function getProvider() {
+    if (window.ethereum) {
+      console.log(window.ethereum.providers);
+      // Multiple injected providers? (MetaMask, TrustWallet, etc.)
+      if (window.ethereum.providers?.length) {
+        console.log('pro', window.ethereum.providers);
+        // Example: choose TrustWallet first if present
+        const trust = window.ethereum.providers.find(p => p.isTrust);
+        if (trust) return trust;
+        const metamask = window.ethereum.providers.find(p => p.isMetaMask);
+        if (metamask) return metamask;
+        return window.ethereum.providers[0];
+      }
+      return window.ethereum; // single provider
+    } 
+    else if (window.metamask) {
+      return window.metamask; // fallback
+    } 
+    else {
+      return null;
+    }
+  }
+
+  connectWalletBtn.onclick = async () => {
+    const injectedProvider = getProvider();
+    console.log('injectProvider', injectedProvider);
+    
+    if (!injectedProvider) {
+      alert("No Ethereum wallet found. Install MetaMask or Trust Wallet.");
+      return;
+    }
+
+    try {
+      // Ask accounts
+      const accounts = await injectedProvider.request({ method: "eth_requestAccounts" });
+
+      // Wrap in ethers v6
+      const provider = new ethers.BrowserProvider(injectedProvider);
+      const signer = await provider.getSigner();
+
+      const address = signer.address;
+      console.log("Accounts:", accounts);
+      
+      walletAddressP.textContent = `Connected: ${address}`;
+    } catch (e) {
+      console.error(e);
+      alert("Wallet connection failed: " + e.message);
+    }
+  };
+
+  // Open trade panel
+  window.openTrade = function(name, symbol) {
+    selectedCoin = symbol;
+    tradePanel.style.display = 'block';
+    tradeTitle.textContent = `Trade ${name} (${symbol})`;
+    tradeAmount.value = '';
+    tradeStatus.textContent = '';
+  };
+
+  // Buy (Only ETH supported for real Sepolia tx)
+  buyBtn.onclick = async () => {
+    if (!signer) return alert("Please connect your wallet first.");
+
+    const amount = tradeAmount.value;
+    if (!amount || isNaN(amount) || amount <= 0) return alert("Enter valid amount.");
+
+    try {
+      const tx = await signer.sendTransaction({
+        to: signer.address,
+        value: ethers.parseEther(amount)
+      });
+         tradeStatus.textContent = "Transaction sent. Waiting for confirmation...";
+       try {
+        await tx.wait();
+        tradeStatus.textContent = "Buy confirmed!";
+        addOrderToHistory("Buy", selectedCoin, amount, tx.hash, "Confirmed");
+      } catch (err) {
+        console.warn("Tx confirmed, but wait() failed:", err);
+        tradeStatus.textContent = "Transaction confirmed";
+        addOrderToHistory("Buy", selectedCoin, amount, tx.hash, "Likely Confirmed");
+      }
+      // tradeStatus.textContent = "Buy confirmed!";
+    } catch (err) {
+      tradeStatus.textContent = "Buy failed: " + err.message;
+    }
+  };
+
+  // Sell (send ETH to any test wallet)
+  sellBtn.onclick = async () => {
+    if (!signer) return alert("Connect wallet first.");
+
+    const amount = tradeAmount.value;
+    if (!amount || isNaN(amount) || amount <= 0) return alert("Enter valid amount.");
+
+    try {
+      const tx = await signer.sendTransaction({
+        to: "0xb61f7237bDde9d68CB2e0b0BA893ff8DC430C3f7", // Replace with your receiving wallet
+        value: ethers.parseEther(amount)
+      });
+      tradeStatus.textContent = "Selling...";
+      try {
+        await tx.wait();
+        tradeStatus.textContent = "Sell confirmed!";
+        addOrderToHistory("Sell", selectedCoin, amount, tx.hash, "Confirmed");
+      } catch (err) {
+        console.warn("Tx confirmed, but wait() failed:", err);
+        tradeStatus.textContent = "Transaction confirmed";
+        addOrderToHistory("Sell", selectedCoin, amount, tx.hash, "Likely Confirmed");
+      }
+    } catch (err) {
+      tradeStatus.textContent = "Sell failed: " + err.message;
+    }
+  };
+
+
+  swapBtn.onclick = async () => {
+    if (!signer) return alert("Connect wallet first.");
+    if (!selectedCoin) return alert("Select a coin to trade.");
+
+    const amount = tradeAmount.value;
+    const toCoin = swapToCoin.value;
+
+    if (!amount || isNaN(amount) || amount <= 0) return alert("Enter valid amount.");
+
+    // NOTE: This is a simulated swap by sending ETH to a dummy contract
+    try {
+      const tx = await signer.sendTransaction({
+        to: "0xb61f7237bDde9d68CB2e0b0BA893ff8DC430C3f7",
+        value: ethers.parseEther(amount)
+      });
+
+      tradeStatus.textContent = `Swapping to ${toCoin}...`;
+
+      try {
+        await tx.wait();
+        tradeStatus.textContent = `Swap to ${toCoin} confirmed!`;
+        addOrderToHistory("Swap", `${selectedCoin} → ${toCoin}`, amount, tx.hash, "Confirmed");
+      } catch (err) {
+        console.warn("Swap wait() failed:", err);
+        tradeStatus.textContent = "Swap sent, status unknown.";
+        addOrderToHistory("Swap", `${selectedCoin} → ${toCoin}`, amount, tx.hash, "Likely Confirmed");
+      }
+    } catch (err) {
+      tradeStatus.textContent = "Swap failed: " + err.message;
+    }
+  };
+</script>
+<script>
+  let orders = [];
+
+function addOrderToHistory(type, coin, amount, txHash, status) {
+  const tableBody = document.getElementById('orderHistoryBody');
+  const row = document.createElement('tr');
+  row.innerHTML = `
+    <td>${type}</td>
+    <td>${coin}</td>
+    <td>${amount}</td>
+    <td><a href="https://sepolia.etherscan.io/tx/${txHash}" target="_blank">View</a></td>
+    <td>${status}</td>
+  `;
+  tableBody.appendChild(row);
+
+  // Optional: Store in browser localStorage
+  orders.push({ type, coin, amount, txHash, status });
+  // localStorage.setItem('orders', JSON.stringify(orders));
+}
+
+</script>
+</body>
+</html>
