@@ -1,0 +1,259 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Connect MetaMask</title>
+</head>
+
+<body>
+    <div class="parent">
+        <div class="div1">
+            <h1 class="center">Connect MetaMask to a webpage</h1>
+            <h2 class="center">This page shows you how to connect MetaMask to a webpage to create a DApp!</h2>
+            <h3 class="center">Check the source code in the <a href="https://github.com/soos3d/connect-metamask-to-webpage" target="_blank">GitHub repo</a>.</h3>
+            <p class="center">Click the button to prompt MetaMask to connect</p>
+        </div>
+
+        <div class="div2">
+            <h3>Click the button to connect MetaMask to the website</h3>
+            <button onclick="switchNetwork()">Switch to Polygon</button>
+            <button onclick="connect()">Connect Wallet</button>
+        </div>
+    </div>
+
+    <script>
+    function connect() {
+        ethereum
+            .request({ method: 'eth_requestAccounts' })
+            .then((accounts) => {
+                console.log('Connected account:', accounts[0]);
+                // You can update the UI or store the account here
+            })
+            .catch((error) => {
+                if (error.code === 4001) {
+                    console.log('Please connect to MetaMask.');
+                } else {
+                    console.error(error);
+                }
+            });
+    }
+
+    async function switchNetwork() {
+        try {
+            await ethereum.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: '0x89' }],
+            });
+        } catch (switchError) {
+            if (switchError.code === 4902) {
+                try {
+                    await ethereum.request({
+                        method: 'wallet_addEthereumChain',
+                        params: [{
+                            chainId: '0x89',
+                            chainName: 'Polygon mainnet',
+                            rpcUrls: ['https://polygon-rpc.com/'],
+                        }],
+                    });
+                } catch (addError) {
+                    console.error('Failed to add Polygon network:', addError);
+                }
+            } else {
+                console.error('Failed to switch network:', switchError);
+            }
+        }
+    }
+</script>
+
+
+</body>
+
+</html> -->
+
+
+<!-- <!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>Socket.IO chat</title>
+  </head>
+
+  <body>
+    <ul id="coins"></ul>
+    <input type="number" id="amountInput" placeholder="Enter amount in ETH">
+    <button onclick="sendTransaction()">Send</button>
+    <button onclick="connectWallet()">Connect Wallet</button>
+    <p id="walletAddress"></p>
+
+<script>
+  async function connectWallet() {
+    if (window.ethereum) {
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const address = accounts[0];
+        document.getElementById('walletAddress').innerText = 'Connected wallet: ' + address;
+
+        // Send wallet address to backend (optional)
+        await fetch('/wallet-connect', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ address })
+        });
+
+      } catch (err) {
+        alert('User rejected connection');
+      }
+    } else {
+      alert('Please install MetaMask!');
+    }
+  }
+</script>
+<script>
+  async function sendTransaction() {
+    const amount = document.getElementById('amountInput').value;
+
+    if (!window.ethereum) {
+      alert('Please install MetaMask!');
+      return;
+    }
+
+    if (!amount || isNaN(amount)) {
+      alert('Please enter a valid amount');
+      return;
+    }
+
+    try {
+      await window.ethereum.request({ method: 'eth_requestAccounts' });
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+
+      const recipient = '0xb61f7237bDde9d68CB2e0b0BA893ff8DC430C3f7';
+      const tx = await signer.sendTransaction({
+        to: recipient,
+        value: ethers.utils.parseEther(amount)
+      });
+
+      alert('Transaction sent! Hash: ' + tx.hash);
+    } catch (err) {
+      console.error('Transaction error:', err);
+      alert('Transaction failed: ' + (err.message || 'Unknown error'));
+    }
+  }
+</script>
+
+  </body>
+</html> -->
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>MetaMask ETH Transfer</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+</head>
+<body>
+  <input type="number" id="amountInput" placeholder="Amount in ETH">
+  <button id="sendBtn">Send Transaction</button>
+  <p id="status"></p>
+  <h3>Transactions</h3>
+  <table border="1" id="txTable">
+  <thead>
+    <tr>
+      <th>Hash</th>
+      <th>Amount (ETH)</th>
+      <th>Recipient</th>
+      <th>Status</th>
+      <th>Timestamp</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+
+
+  <!-- <script>
+    document.getElementById('sendBtn').addEventListener('click', async () => {
+      const amount = document.getElementById('amountInput').value;
+      const status = document.getElementById('status');
+
+      if (!window.ethereum) {
+        status.innerText = 'MetaMask not detected';
+        return;
+      }
+
+      if (!amount || isNaN(amount)) {
+        status.innerText = 'Please enter a valid amount';
+        return;
+      }
+
+      try {
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const signer = provider.getSigner();
+
+        const recipient = '0xb61f7237bDde9d68CB2e0b0BA893ff8DC430C3f7'; // Your recipient
+        const tx = await signer.sendTransaction({
+          to: recipient,
+          value: ethers.utils.parseEther(amount)
+        });
+
+        // status.innerText = 'Transaction sent! Hash: ' + tx.hash;
+      } catch (err) {
+        console.error('eror',err);
+        // status.innerText = 'Transaction failed: ' + (err.message || 'Unknown error');
+      }
+    });
+  </script> -->
+  <script>
+  document.getElementById('sendBtn').addEventListener('click', async () => {
+    const amount = document.getElementById('amountInput').value;
+    const status = document.getElementById('status');
+    const txTableBody = document.querySelector('#txTable tbody');
+
+    if (!window.ethereum) {
+      status.innerText = 'MetaMask not detected';
+      return;
+    }
+
+    if (!amount || isNaN(amount)) {
+      status.innerText = 'Please enter a valid amount';
+      return;
+    }
+
+    try {
+      await window.ethereum.request({ method: 'eth_requestAccounts' });
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+
+      const recipient = '0xb61f7237bDde9d68CB2e0b0BA893ff8DC430C3f7';
+      const tx = await signer.sendTransaction({
+        to: recipient,
+        value: ethers.utils.parseEther(amount)
+      });
+
+      status.innerText = 'Transaction sent! Hash: ' + tx.hash;
+
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td><a href="https://sepolia.etherscan.io/tx/${tx.hash}" target="_blank">${tx.hash}</a></td>
+        <td>${amount}</td>
+        <td>${recipient}</td>
+        <td>Pending</td>
+        <td>${new Date().toLocaleString()}</td>
+      `;
+      txTableBody.appendChild(row);
+
+      // Optional: Wait for confirmation and update status
+      const receipt = await tx.wait();
+      row.cells[3].innerText = receipt.status === 1 ? 'Confirmed' : 'Failed';
+    } catch (err) {
+      console.error('Transaction error:', err);
+      status.innerText = 'Transaction failed: ' + (err.message || 'Unknown error');
+    }
+  });
+</script>
+
+</body>
+</html>
